@@ -6,6 +6,8 @@ const axios = require("axios");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 
+const { BASE_URL } = require("./config");
+
 const secret = "Ws6alQNX3ZHExnxqjISK9cIff2iXywy2";
 
 const { Users, Portfolio, Feedback } = require("./database");
@@ -14,9 +16,7 @@ const app = express();
 
 app.use([
   cors({
-    // origin: "https://fencing-prod.vercel.app",
-    origin: "http://localhost:5174",
-    // origin: "http://localhost:5173",
+    origin: BASE_URL,
   }),
   express.static("public"),
 ]);
@@ -27,7 +27,6 @@ async function getFeedbacks(targetUrl, portfolioId) {
   if (!portfolioId || portfolioId.trim() === "") {
     return [];
   }
-  console.log(targetUrl, portfolioId);
   const feedbacks = await Feedback.find({
     relativePathUrl: targetUrl,
     associatedToPortfolio: portfolioId,
@@ -42,7 +41,6 @@ app.post("/login", async function (req, res) {
     const user = await Users.findOne({ email });
     if (!user) return res.status(400).json({ data: "User not found" });
     const isPasswordValid = await bcrypt.compare(password, user.password);
-    console.log(isPasswordValid);
     if (!isPasswordValid)
       return res.status(400).json({
         data: "Wrong Password. Try again!",
@@ -510,7 +508,8 @@ app.get("/proxy", async (req, res) => {
 
             // Create pin image
             const pin = document.createElement('img');
-            pin.src = 'http://localhost:5174/pin.png'; // 
+            // pin.src = 'http://localhost:5174/pin.png';
+            pin.src = '${BASE_URL}/pin.png';
             pin.style.position = 'absolute';
             pin.style.left = x + 'px';
             pin.style.top = y + 'px';
@@ -546,7 +545,8 @@ app.get("/proxy", async (req, res) => {
             feedbackTitle.style.fontWeight = '600';
 
             const closeImg = document.createElement('img');
-              closeImg.src = 'http://localhost:5174/cross.png'
+              // closeImg.src = 'http://localhost:5174/cross.png';
+              closeImg.src = '${BASE_URL}/cross.png';
               closeImg.style.width = '20px';
               closeImg.style.height = '20px';
               closeImg.style.cursor = 'pointer';
@@ -640,7 +640,8 @@ app.get("/proxy", async (req, res) => {
             const pin = document.createElement('img');
             const pinX = f.x * window.innerWidth;
             const pinY = f.y * window.innerHeight;
-            pin.src = 'http://localhost:5174/pin.png'; // 
+            // pin.src = 'http://localhost:5174/pin.png';  
+            pin.src = '${BASE_URL}/pin.png';  
             pin.style.position = 'absolute';
             pin.style.left = pinX + 'px';
             pin.style.top = pinY + 'px';
@@ -686,7 +687,8 @@ app.get("/proxy", async (req, res) => {
             feedbackTitle.style.fontWeight = '600';
 
             const closeImg = document.createElement('img');
-            closeImg.src = 'http://localhost:5174/cross.png'
+            // closeImg.src = 'http://localhost:5174/cross.png';
+            closeImg.src = '${BASE_URL}/cross.png';
             closeImg.style.width = '20px';
             closeImg.style.height = '20px';
             closeImg.style.cursor = 'pointer';
@@ -815,7 +817,8 @@ app.get("/proxy-dashboard", async (req, res) => {
             const pin = document.createElement('img');
             const pinX = f.x * window.innerWidth;
             const pinY = f.y * window.innerHeight;
-            pin.src = 'http://localhost:5174/pin.png'; // 
+            // pin.src = 'http://localhost:5174/pin.png';
+            pin.src = '${BASE_URL}/pin.png';
             pin.style.position = 'absolute';
             pin.style.left = pinX + 'px';
             pin.style.top = pinY + 'px';
@@ -861,7 +864,8 @@ app.get("/proxy-dashboard", async (req, res) => {
             feedbackTitle.style.fontWeight = '600';
 
             const closeImg = document.createElement('img');
-            closeImg.src = 'http://localhost:5174/cross.png'
+            // closeImg.src = 'http://localhost:5174/cross.png';
+            closeImg.src = '${BASE_URL}/cross.png';
             closeImg.style.width = '20px';
             closeImg.style.height = '20px';
             closeImg.style.cursor = 'pointer';
