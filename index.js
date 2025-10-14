@@ -114,6 +114,25 @@ app.post("/signup", async function (req, res) {
   }
 });
 
+app.get("/user-exists", async function (req, res) {
+  try {
+    const { email } = req.query;
+    const user = await Users.findOne({ email });
+    if (!user) {
+      return res.status(200).json({
+        data: "User does not exists",
+      });
+    } else {
+      return res.status(409).json({
+        data: "User exists",
+      });
+    }
+  } catch (err) {
+    res.status(500).json({
+      data: "Something went wrong. Try again!",
+    });
+  }
+});
 app.get("/portfolio", async function (req, res) {
   try {
     const { email, id } = req.query;
