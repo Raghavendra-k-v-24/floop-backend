@@ -5,6 +5,7 @@ const cheerio = require("cheerio");
 const axios = require("axios");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
+const chromium = require("chrome-aws-lambda");
 
 const { BASE_URL } = require("./config");
 
@@ -46,7 +47,12 @@ app.post("/login", async function (req, res) {
         data: "Wrong Password. Try again!",
       });
     res.status(200).json({
-      data: { name: user.name, email: user.email, role: user.role },
+      data: {
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        id: user._id.toString(),
+      },
     });
   } catch (err) {
     res.status(500).json({
@@ -133,6 +139,7 @@ app.get("/user-exists", async function (req, res) {
     });
   }
 });
+
 app.get("/portfolio", async function (req, res) {
   try {
     const { email, id } = req.query;
@@ -1002,109 +1009,6 @@ app.get("/proxy-preview", async (req, res) => {
     res.status(500).send("Error fetching target URL: " + error.message);
   }
 });
-
-// #############################################################
-
-// app.get("/checkout", async function (req, res) {
-//   try {
-//     const students = await Students.find({});
-//     if (students.length > 0) {
-//       const historyRecords = students.map((student) => ({
-//         id: student.studentId,
-//         name: student.name,
-//         points: student.points,
-//         status: "Out",
-//         group: student.group,
-//         dateTime: new Date().toISOString(),
-//         change: "Status",
-//       }));
-
-//       await History.insertMany(historyRecords);
-//       await Students.updateMany({}, { $set: { status: "Out" } });
-//     }
-//     res.status(200).json({
-//       data: "",
-//     });
-//   } catch (err) {
-//     res.status(500).json({
-//       data: err,
-//     });
-//   }
-// });
-
-// app.put("/student/:id", async function (req, res) {
-//   try {
-//     const studentId = req.params.id;
-//     const data = req.body;
-//     await Students.updateOne({ id: studentId }, { $set: data });
-//     res.status(200).json({
-//       data: null,
-//     });
-//   } catch (err) {
-//     res.status(500).json({
-//       data: err,
-//     });
-//   }
-// });
-
-// app.post("/history", async function (req, res) {
-//   try {
-//     const data = req.body;
-//     const newRecord = new History(data);
-//     newRecord.save();
-//     res.status(200).json({
-//       data: null,
-//     });
-//   } catch (err) {
-//     res.status(500).json({
-//       data: null,
-//     });
-//   }
-// });
-
-// app.get("/history/:id", async function (req, res) {
-//   try {
-//     const id = req.params.id;
-//     const students = await History.find({ "id": id });
-//     res.status(200).json({
-//       data: students,
-//     });
-//   } catch (err) {
-//     res.status(500).json({
-//       data: err,
-//     });
-//   }
-// });
-
-// app.post("/user", async function (req, res) {
-//   try {
-//     const data = req.body;
-//     const newRecord = new Users(data);
-//     const idString = newRecord._id.toString();
-//     newRecord.save();
-//     res.status(200).json({
-//       data: idString,
-//     });
-//   } catch (err) {
-//     res.status(500).json({
-//       data: null,
-//     });
-//   }
-// });
-
-// app.get("/user/:id", async function (req, res) {
-//   try {
-//     const userId = req.params.id;
-//     const user = await Users.findById(userId);
-//     res.status(200).json({
-//       data: user,
-//     });
-//   } catch (err) {
-//     res.status(500).json({
-//       data: err,
-//     });
-//   }
-// });
 
 app.listen(3000, () => {
   console.log("Server is running at port 3000");
