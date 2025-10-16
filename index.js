@@ -18,6 +18,9 @@ const app = express();
 app.use([
   cors({
     origin: BASE_URL,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
   }),
   express.static("public"),
 ]);
