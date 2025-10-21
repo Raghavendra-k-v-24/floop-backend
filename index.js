@@ -48,14 +48,17 @@ app.post("/login", async function (req, res) {
       return res.status(400).json({
         data: "Wrong Password. Try again!",
       });
-    res.status(200).json({
-      data: {
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        id: user._id.toString(),
-      },
-    });
+    res
+      .header("Access-Control-Allow-Origin", "https://www.floop.design")
+      .status(200)
+      .json({
+        data: {
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          id: user._id.toString(),
+        },
+      });
   } catch (err) {
     res.status(500).json({
       data: "Something went wrong. Try again!",
