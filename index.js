@@ -5,7 +5,6 @@ const cheerio = require("cheerio");
 const axios = require("axios");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
-const chromium = require("chrome-aws-lambda");
 
 const { BASE_URL } = require("./config");
 
@@ -17,7 +16,7 @@ const app = express();
 
 app.use([
   cors({
-    origin: ["https://www.floop.design", "http://localhost:5174"],
+    origin: BASE_URL,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   }),
@@ -48,17 +47,14 @@ app.post("/login", async function (req, res) {
       return res.status(400).json({
         data: "Wrong Password. Try again!",
       });
-    res
-      .header("Access-Control-Allow-Origin", "https://www.floop.design")
-      .status(200)
-      .json({
-        data: {
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          id: user._id.toString(),
-        },
-      });
+    res.status(200).json({
+      data: {
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        id: user._id.toString(),
+      },
+    });
   } catch (err) {
     res.status(500).json({
       data: "Something went wrong. Try again!",
