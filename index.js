@@ -17,7 +17,7 @@ const app = express();
 
 app.use([
   cors({
-    origin: BASE_URL,
+    origin: "https://www.floop.design",
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
@@ -402,7 +402,6 @@ app.get("/proxy", async (req, res) => {
           const cardWidth = rect.width;
           const cardHeight = rect.height;
 
-          console.log(cardWidth, cardHeight);
 
           let finalX = x;
           let finalY = y;
@@ -537,7 +536,6 @@ app.get("/proxy", async (req, res) => {
 
             // Create pin image
             const pin = document.createElement('img');
-            // pin.src = 'http://localhost:5174/pin.png';
             pin.src = '${BASE_URL}/pin.png';
             pin.style.position = 'absolute';
             pin.style.left = x + 'px';
@@ -573,18 +571,17 @@ app.get("/proxy", async (req, res) => {
             feedbackTitle.textContent = 'Feedback';
             feedbackTitle.style.fontWeight = '600';
 
-            const closeImg = document.createElement('img');
-              // closeImg.src = 'http://localhost:5174/cross.png';
-              closeImg.src = '${BASE_URL}/cross.png';
-              closeImg.style.width = '20px';
-              closeImg.style.height = '20px';
-              closeImg.style.cursor = 'pointer';
-              closeImg.onclick = () => {
-              feedbackCard.style.display = 'none';
-            };
+            // const closeImg = document.createElement('img');
+            //   closeImg.src = '${BASE_URL}/cross.png';
+            //   closeImg.style.width = '20px';
+            //   closeImg.style.height = '20px';
+            //   closeImg.style.cursor = 'pointer';
+            //   closeImg.onclick = () => {
+            //   feedbackCard.style.display = 'none';
+            // };
 
             feedbackHeader.appendChild(feedbackTitle);
-            feedbackHeader.appendChild(closeImg);
+            // feedbackHeader.appendChild(closeImg);
 
             const feedbackBody = document.createElement('div');
             feedbackBody.style.width = '100%';
@@ -605,10 +602,26 @@ app.get("/proxy", async (req, res) => {
             feedbackCard.appendChild(feedbackBody);
 
             // Toggle tooltip on pin click
-            pin.onclick = (e) => {
-              e.stopPropagation();
-              feedbackCard.style.display = feedbackCard.style.display === 'none' ? 'flex' : 'none';
-            };
+            // pin.onclick = (e) => {
+            //   e.stopPropagation();
+            //   feedbackCard.style.display = feedbackCard.style.display === 'none' ? 'flex' : 'none';
+            // };
+            pin.addEventListener("mouseenter", () => {
+              feedbackCard.style.display = "flex";
+            });
+
+            pin.addEventListener("mouseleave", () => {
+              // Delay hiding slightly in case user moves toward the card
+              setTimeout(() => {
+                if (!feedbackCard.matches(":hover") && !pin.matches(":hover")) {
+                  feedbackCard.style.display = "none";
+                }
+              }, 100);
+            });
+
+            feedbackCard.addEventListener("mouseleave", () => {
+              feedbackCard.style.display = "none";
+            });
 
             // Append pin + tooltip
             document.body.appendChild(pin);
@@ -668,8 +681,7 @@ app.get("/proxy", async (req, res) => {
         existingFeedbacks.forEach(f => {
             const pin = document.createElement('img');
             const pinX = f.x * window.innerWidth;
-            const pinY = f.y * window.innerHeight;
-            // pin.src = 'http://localhost:5174/pin.png';  
+            const pinY = f.y * window.innerHeight; 
             pin.src = '${BASE_URL}/pin.png';  
             pin.style.position = 'absolute';
             pin.style.left = pinX + 'px';
@@ -699,7 +711,7 @@ app.get("/proxy", async (req, res) => {
             feedbackCard.style.borderRadius = '12px';
             feedbackCard.style.padding = '12px';
             feedbackCard.style.width = '300px';
-            feedbackCard.style.height = '250px';
+            feedbackCard.style.height = 'min-content';
             feedbackCard.style.zIndex = 10000;
             feedbackCard.style.display = 'none'; // initially hidden
             feedbackCard.style.flexDirection = 'column';
@@ -715,17 +727,16 @@ app.get("/proxy", async (req, res) => {
             feedbackTitle.textContent = 'Feedback';
             feedbackTitle.style.fontWeight = '600';
 
-            const closeImg = document.createElement('img');
-            // closeImg.src = 'http://localhost:5174/cross.png';
-            closeImg.src = '${BASE_URL}/cross.png';
-            closeImg.style.width = '20px';
-            closeImg.style.height = '20px';
-            closeImg.style.cursor = 'pointer';
-            closeImg.onclick = () => {
-            feedbackCard.style.display = 'none';};
+            // const closeImg = document.createElement('img');
+            // closeImg.src = '${BASE_URL}/cross.png';
+            // closeImg.style.width = '20px';
+            // closeImg.style.height = '20px';
+            // closeImg.style.cursor = 'pointer';
+            // closeImg.onclick = () => {
+            // feedbackCard.style.display = 'none';};
 
             feedbackHeader.appendChild(feedbackTitle);
-            feedbackHeader.appendChild(closeImg);
+            // feedbackHeader.appendChild(closeImg);
 
             const feedbackBody = document.createElement('div');
             feedbackBody.style.width = '100%';
@@ -746,10 +757,26 @@ app.get("/proxy", async (req, res) => {
             feedbackCard.appendChild(feedbackBody);
 
             // // Toggle tooltip on pin click
-            pin.onclick = (e) => {
-              e.stopPropagation();
-              feedbackCard.style.display = 'flex';
-            };
+            // pin.onclick = (e) => {
+            //   e.stopPropagation();
+            //   feedbackCard.style.display = 'flex';
+            // };
+            pin.addEventListener("mouseenter", () => {
+              feedbackCard.style.display = "flex";
+            });
+
+            pin.addEventListener("mouseleave", () => {
+              // Delay hiding slightly in case user moves toward the card
+              setTimeout(() => {
+                if (!feedbackCard.matches(":hover") && !pin.matches(":hover")) {
+                  feedbackCard.style.display = "none";
+                }
+              }, 100);
+            });
+
+            feedbackCard.addEventListener("mouseleave", () => {
+              feedbackCard.style.display = "none";
+            });
 
             // Append pin + tooltip
             document.body.appendChild(pin);
@@ -757,6 +784,7 @@ app.get("/proxy", async (req, res) => {
 
         });
       `;
+
       $("body").append(
         `<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>`
       );
@@ -846,7 +874,6 @@ app.get("/proxy-dashboard", async (req, res) => {
             const pin = document.createElement('img');
             const pinX = f.x * window.innerWidth;
             const pinY = f.y * window.innerHeight;
-            // pin.src = 'http://localhost:5174/pin.png';
             pin.src = '${BASE_URL}/pin.png';
             pin.style.position = 'absolute';
             pin.style.left = pinX + 'px';
@@ -892,17 +919,16 @@ app.get("/proxy-dashboard", async (req, res) => {
             feedbackTitle.textContent = 'Feedback';
             feedbackTitle.style.fontWeight = '600';
 
-            const closeImg = document.createElement('img');
-            // closeImg.src = 'http://localhost:5174/cross.png';
-            closeImg.src = '${BASE_URL}/cross.png';
-            closeImg.style.width = '20px';
-            closeImg.style.height = '20px';
-            closeImg.style.cursor = 'pointer';
-            closeImg.onclick = () => {
-            feedbackCard.style.display = 'none';};
+            // const closeImg = document.createElement('img');
+            // closeImg.src = '${BASE_URL}/cross.png';
+            // closeImg.style.width = '20px';
+            // closeImg.style.height = '20px';
+            // closeImg.style.cursor = 'pointer';
+            // closeImg.onclick = () => {
+            // feedbackCard.style.display = 'none';};
 
             feedbackHeader.appendChild(feedbackTitle);
-            feedbackHeader.appendChild(closeImg);
+            // feedbackHeader.appendChild(closeImg);
 
             const feedbackBody = document.createElement('div');
             feedbackBody.style.width = '100%';
@@ -923,10 +949,26 @@ app.get("/proxy-dashboard", async (req, res) => {
             feedbackCard.appendChild(feedbackBody);
 
             // // Toggle tooltip on pin click
-            pin.onclick = (e) => {
-              e.stopPropagation();
-              feedbackCard.style.display = 'flex';
-            };
+            // pin.onclick = (e) => {
+            //   e.stopPropagation();
+            //   feedbackCard.style.display = 'flex';
+            // };
+            pin.addEventListener("mouseenter", () => {
+              feedbackCard.style.display = "flex";
+            });
+
+            pin.addEventListener("mouseleave", () => {
+              // Delay hiding slightly in case user moves toward the card
+              setTimeout(() => {
+                if (!feedbackCard.matches(":hover") && !pin.matches(":hover")) {
+                  feedbackCard.style.display = "none";
+                }
+              }, 100);
+            });
+
+            feedbackCard.addEventListener("mouseleave", () => {
+              feedbackCard.style.display = "none";
+            });
 
             // Append pin + tooltip
             document.body.appendChild(pin);
