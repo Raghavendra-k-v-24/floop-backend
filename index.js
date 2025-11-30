@@ -10,7 +10,8 @@ const { BASE_URL } = require("./config");
 
 const secret = "Ws6alQNX3ZHExnxqjISK9cIff2iXywy2";
 
-const { Users, Portfolio, Feedback } = require("./database");
+const { Users, Portfolio, Feedback, History } = require("./database");
+const { default: mongoose } = require("mongoose");
 
 const app = express();
 
@@ -34,6 +35,10 @@ async function getFeedbacks(targetUrl, portfolioId) {
     associatedToPortfolio: portfolioId,
   });
   return feedbacks;
+}
+
+function getTodayDateKey() {
+  return new Date().toISOString().split("T")[0]; // "YYYY-MM-DD"
 }
 
 app.post("/login", async function (req, res) {
@@ -91,6 +96,7 @@ app.post("/signup", async function (req, res) {
 
     const newUser = new Users({ name, email, password: hashedPassword, role });
     const userId = newUser._id;
+    const userIdString = userId.toString();
     await newUser.save();
 
     if (!isSkip) {
@@ -107,12 +113,12 @@ app.post("/signup", async function (req, res) {
       });
       const portfolioIdString = newPortfolio._id.toString();
       await newPortfolio.save();
-      res.status(200).json({
-        data: portfolioIdString,
+      return res.status(200).json({
+        data: { portfolioId: portfolioIdString, userId: userIdString },
       });
     }
-    res.status(200).json({
-      data: null,
+    return res.status(200).json({
+      data: { userId: userIdString },
     });
   } catch (err) {
     res.status(500).json({
@@ -166,12 +172,21 @@ app.get("/portfolio", async function (req, res) {
 
 app.put("/portfolio", async function (req, res) {
   try {
-    const data = req.body;
-    const { portfolioId, emailInvites, accessType } = data;
-    await Portfolio.updateOne(
-      { _id: portfolioId },
-      { $set: { emailInvites: emailInvites, accessType: accessType } }
-    );
+    const { portfolioId } = req.body;
+    const ALLOWED_FIELDS = [
+      "emailInvites",
+      "accessType",
+      "goals",
+      "isOpened",
+      "openedAt",
+    ];
+    const updateData = {};
+    ALLOWED_FIELDS.forEach((field) => {
+      if (req.body[field] !== undefined) {
+        updateData[field] = req.body[field];
+      }
+    });
+    await Portfolio.updateOne({ _id: portfolioId }, { $set: updateData });
     res.status(200).json({
       data: null,
     });
@@ -182,10 +197,48 @@ app.put("/portfolio", async function (req, res) {
   }
 });
 
-app.get("/feedback/:id", async function (req, res) {
+app.put("/portfolio/opened", async (req, res) => {
   try {
-    const associatedTo = req.params.id;
-    const feedbacks = await Portfolio.find({ "associatedTo": associatedTo });
+    const { portfolioId } = req.body;
+
+    const portfolio = await Portfolio.findOneAndUpdate(
+      { _id: portfolioId, isOpened: false },
+      {
+        $set: {
+          isOpened: true,
+          openedAt: new Date(),
+        },
+        $inc: { openCount: 1 },
+      },
+      { new: true }
+    );
+
+    if (portfolio) {
+      const today = getTodayDateKey();
+      await History.create({
+        associatedToUser: null,
+        associatedToPortfolio: portfolioId,
+        message: `${portfolio.reviewerName} opened the link`,
+        type: null,
+        eventType: "OPENED",
+        activityDate: today,
+      });
+    }
+
+    res.json({
+      firstOpen: !!portfolio,
+    });
+  } catch (err) {
+    res.status(500).json({ firstOpen: false });
+  }
+});
+
+app.get("/feedback", async function (req, res) {
+  try {
+    const { associatedToPortfolio } = req.query;
+    const feedbacks = await Feedback.find({
+      "associatedToPortfolio": associatedToPortfolio,
+    });
     res.status(200).json({
       data: feedbacks,
     });
@@ -196,7 +249,7 @@ app.get("/feedback/:id", async function (req, res) {
   }
 });
 
-app.get("/feedback-count", async function (req, res) {
+app.get("/overall-feedback-count", async function (req, res) {
   try {
     const email = req.query.email;
     const receivedPortfolios = await Portfolio.find({ "revieweeEmail": email });
@@ -226,6 +279,25 @@ app.get("/feedback-count", async function (req, res) {
   }
 });
 
+app.get("/portfolio-feedback-count", async function (req, res) {
+  try {
+    const id = req.query.portfolioId;
+
+    const feedbackCount = await Feedback.countDocuments({
+      "associatedToPortfolio": id,
+    });
+    res.status(200).json({
+      data: {
+        feedbackCount: feedbackCount,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({
+      data: err,
+    });
+  }
+});
+
 app.post("/portfolio", async function (req, res) {
   try {
     const data = req.body;
@@ -234,6 +306,49 @@ app.post("/portfolio", async function (req, res) {
     newRecord.save();
     res.status(200).json({
       data: idString,
+    });
+  } catch (err) {
+    res.status(500).json({
+      data: null,
+    });
+  }
+});
+
+app.get("/history", async (req, res) => {
+  try {
+    const { associatedToUser, associatedToPortfolio } = req.query;
+
+    const query = {};
+
+    if (associatedToUser) {
+      if (!mongoose.Types.ObjectId.isValid(associatedToUser)) {
+        return res.status(400).json({ error: "Invalid associatedToUser" });
+      }
+      query.associatedToUser = associatedToUser;
+    }
+
+    if (associatedToPortfolio) {
+      if (!mongoose.Types.ObjectId.isValid(associatedToPortfolio)) {
+        return res.status(400).json({ error: "Invalid associatedToPortfolio" });
+      }
+      query.associatedToPortfolio = associatedToPortfolio;
+    }
+
+    const history = await History.find(query).sort({ createdAt: -1 });
+
+    res.status(200).json({ data: history });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/history", async function (req, res) {
+  try {
+    const data = req.body;
+    const newRecord = new History(data);
+    newRecord.save();
+    res.status(200).json({
+      data: null,
     });
   } catch (err) {
     res.status(500).json({
@@ -282,6 +397,35 @@ app.post("/save-feedback", async (req, res) => {
     };
     const newFeedback = new Feedback(data);
     await newFeedback.save();
+
+    const portfolio = await Portfolio.findOneAndUpdate(
+      { _id: associatedToPortfolio },
+      { $inc: { commentCount: 1 } },
+      { new: true }
+    );
+
+    const today = getTodayDateKey();
+
+    const history = await History.findOneAndUpdate(
+      {
+        associatedToPortfolio,
+        eventType: "COMMENTED",
+        activityDate: today,
+      },
+      {
+        $set: {
+          associatedToUser: null,
+          type: null,
+        },
+        $inc: { count: 1 },
+      },
+      { upsert: true, new: true }
+    );
+    history.message = `${reviewerName} added ${history.count} comment${
+      history.count > 1 ? "s" : ""
+    }`;
+    await history.save();
+
     res.status(200).json({
       data: "Feedback saved!",
     });
@@ -379,16 +523,6 @@ app.get("/proxy", async (req, res) => {
           }
         });
 
-        // window.addEventListener("message", (event) => {
-        //   if (event.data?.type === "toggleCommentMode") {
-        //     window.commentMode = event.data.mode;
-        //     if (window.commentMode) {
-        //       enableDrawingMode();
-        //     } else {
-        //       removeDrawingOverlay();
-        //     }
-        //   }
-        // });
 
         function adjustCardPosition(card, x, y, offset = 20) {
           // Temporarily set position so we can measure
@@ -569,17 +703,8 @@ app.get("/proxy", async (req, res) => {
             feedbackTitle.textContent = 'Feedback';
             feedbackTitle.style.fontWeight = '600';
 
-            // const closeImg = document.createElement('img');
-            //   closeImg.src = '${BASE_URL}/cross.png';
-            //   closeImg.style.width = '20px';
-            //   closeImg.style.height = '20px';
-            //   closeImg.style.cursor = 'pointer';
-            //   closeImg.onclick = () => {
-            //   feedbackCard.style.display = 'none';
-            // };
 
             feedbackHeader.appendChild(feedbackTitle);
-            // feedbackHeader.appendChild(closeImg);
 
             const feedbackBody = document.createElement('div');
             feedbackBody.style.width = '100%';
@@ -599,11 +724,7 @@ app.get("/proxy", async (req, res) => {
             feedbackCard.appendChild(feedbackHeader);
             feedbackCard.appendChild(feedbackBody);
 
-            // Toggle tooltip on pin click
-            // pin.onclick = (e) => {
-            //   e.stopPropagation();
-            //   feedbackCard.style.display = feedbackCard.style.display === 'none' ? 'flex' : 'none';
-            // };
+  
             pin.addEventListener("mouseenter", () => {
               feedbackCard.style.display = "flex";
             });
@@ -647,6 +768,13 @@ app.get("/proxy", async (req, res) => {
           commentFooter.appendChild(cancelButton);
           document.body.appendChild(commentCard);
           input.focus();
+
+          input.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault(); // prevent newline
+              submitButton.click(); // trigger submit
+            }
+          });
         }
 
         // diff logic+

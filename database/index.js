@@ -26,6 +26,10 @@ const portfolioSchema = new mongoose.Schema(
     goals: String,
     emailInvites: String,
     accessType: String,
+    isOpened: { type: Boolean, default: false },
+    openedAt: Date,
+    openCount: Number,
+    commentCount: Number,
   },
   { timestamps: true }
 );
@@ -46,6 +50,36 @@ const feedbackSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+const historySchema = new mongoose.Schema(
+  {
+    associatedToUser: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Users",
+    },
+    associatedToPortfolio: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Portfolio",
+      default: null,
+    },
+    eventType: {
+      type: String,
+      enum: ["OPENED", "COMMENTED", "UPDATED", "CREATED"],
+      required: true,
+    },
+    activityDate: {
+      type: String,
+      required: true,
+    },
+    message: String,
+    type: {
+      type: String,
+      default: null,
+    },
+    count: { type: Number, default: 0 },
+  },
+  { timestamps: true }
+);
+
 //model
 const Users = mongoose.model("users", usersSchema, "users");
 
@@ -53,8 +87,11 @@ const Portfolio = mongoose.model("portfolio", portfolioSchema, "portfolio");
 
 const Feedback = mongoose.model("feedback", feedbackSchema, "feedback");
 
+const History = mongoose.model("history", historySchema, "history");
+
 module.exports = {
   Users,
   Portfolio,
   Feedback,
+  History,
 };
