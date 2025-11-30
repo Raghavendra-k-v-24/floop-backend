@@ -511,6 +511,358 @@ app.get("/proxy", async (req, res) => {
       });
 
       const commentScript = `
+    (function () {
+      window.commentMode = false;
+      window.comments = [];
+
+      window.addEventListener("message", (event) => {
+        if (event.data?.type === "toggleCommentMode") {
+          window.commentMode = event.data.mode;
+        }
+      });
+
+      function createCommentCard(x, y) {
+        const old = document.getElementById("comment-shadow-host");
+        if (old) old.remove();
+
+        let cardX = x;
+        let cardY = y;
+        if (x + 320 > window.innerWidth) cardX -= 340;
+        if (y + 260 > window.innerHeight) cardY -= 270;
+
+        const host = document.createElement("div");
+        host.id = "comment-shadow-host";
+        host.style.position = "absolute";
+        host.style.left = cardX + "px";
+        host.style.top = cardY + "px";
+        host.style.zIndex = "1000000";
+        document.body.appendChild(host);
+
+        const shadow = host.attachShadow({ mode: "open" });
+
+        shadow.innerHTML = \`
+          <style>
+            :host { all: initial; }
+            .card {
+              font-family: Inter, Arial, sans-serif;
+              background: white;
+              width: 300px;
+              height: 250px;
+              border: 2px solid #EBEFF4;
+              border-radius: 12px;
+              padding: 12px;
+              display: flex;
+              flex-direction: column;
+              gap: 8px;
+              box-sizing: border-box;
+            }
+            .header { font-weight: 600; font-size: 14px; }
+            .body {
+              flex-grow: 1;
+              border: 2px solid #EBEFF4;
+              border-radius: 12px;
+              background: #F9FAFB;
+              padding: 6px;
+            }
+            textarea {
+              width: 100%;
+              height: 100%;
+              resize: none;
+              border: none;
+              outline: none;
+              background: transparent;
+              font-family: inherit;
+              font-size: 13px;
+            }
+            .footer { display: flex; gap: 8px; }
+            button {
+              font-size: 14px;
+              padding: 4px 12px;
+              border-radius: 4px;
+              cursor: pointer;
+            }
+            .submit {
+              background: #3a3cff;
+              color: white;
+              border: none;
+            }
+            .cancel {
+              background: white;
+              border: 1px solid #EBEFF4;
+            }
+          </style>
+
+          <div class="card">
+            <div class="header">Comment</div>
+            <div class="body">
+              <textarea placeholder="Enter comment..."></textarea>
+            </div>
+            <div class="footer">
+              <button class="submit">Submit</button>
+              <button class="cancel">Cancel</button>
+            </div>
+          </div>
+        \`;
+
+        const textarea = shadow.querySelector("textarea");
+        const submit = shadow.querySelector(".submit");
+        const cancel = shadow.querySelector(".cancel");
+
+        cancel.onclick = () => host.remove();
+
+        submit.onclick = () => {
+          const text = textarea.value.trim();
+          if (!text) return;
+
+          const relativePathUrl = decodeURIComponent(
+            new URLSearchParams(window.location.search).get("url")
+          );
+
+          axios.post("/save-feedback", {
+            relativePathUrl,
+            associatedToPortfolio: window.portfolioId,
+            reviewerName: window.reviewerName,
+            reviewerEmail: window.reviewerEmail,
+            x: x / window.innerWidth,
+            y: y / window.innerHeight,
+            feedback: text,
+          });
+
+          const pin = document.createElement("img");
+          pin.src = "${BASE_URL}/pin.png";
+          pin.style.position = "absolute";
+          pin.style.left = x + "px";
+          pin.style.top = y + "px";
+          pin.style.width = "40px";
+          pin.style.height = "40px";
+          pin.style.cursor = "pointer";
+          pin.style.zIndex = 9999;
+          document.body.appendChild(pin);
+
+          host.remove();
+        };
+
+        textarea.focus();
+
+        textarea.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            submit.click();
+          }
+        });
+      }
+
+      ["click", "mousedown", "mouseup"].forEach((eventType) => {
+        document.addEventListener(
+          eventType,
+          function (e) {
+            if (!window.commentMode) return;
+            if (e.target.closest("#comment-shadow-host")) return;
+
+            e.preventDefault();
+            e.stopPropagation();
+
+            if (eventType === "click") {
+              createCommentCard(e.pageX, e.pageY);
+            }
+          },
+          { capture: true }
+        );
+      });
+    })();
+    `;
+
+      const initialFeedbackLoadingScript = `
+        (function () {
+          const existingFeedbacks = ${JSON.stringify(existingFeedbacks)};
+
+          existingFeedbacks.forEach((f) => {
+            const pinX = f.x * window.innerWidth;
+            const pinY = f.y * window.innerHeight;
+
+            // 🔹 Pin
+            const pin = document.createElement("img");
+            pin.src = "${BASE_URL}/pin.png";
+            pin.style.position = "absolute";
+            pin.style.left = pinX + "px";
+            pin.style.top = pinY + "px";
+            pin.style.width = "40px";
+            pin.style.height = "40px";
+            pin.style.cursor = "pointer";
+            pin.style.zIndex = 9999;
+            document.body.appendChild(pin);
+
+            // 🔹 Calculate card position
+            let cardX = pinX;
+            let cardY = pinY;
+
+            if (pinX + 300 > window.innerWidth) cardX -= 320;
+            if (pinY + 250 > window.innerHeight) cardY -= 250;
+
+            // 🔹 Shadow host (same approach as commentScript)
+            const host = document.createElement("div");
+            host.style.position = "absolute";
+            host.style.left = cardX + "px";
+            host.style.top = (cardY + 50) + "px";
+            host.style.zIndex = "10000";
+            host.style.display = "none";
+            document.body.appendChild(host);
+
+            const shadow = host.attachShadow({ mode: "open" });
+
+            shadow.innerHTML = \`
+              <style>
+                :host { all: initial; }
+
+                .card {
+                  font-family: Inter, Arial, sans-serif;
+                  background: white;
+                  width: 300px;
+                  border: 2px solid #EBEFF4;
+                  border-radius: 12px;
+                  padding: 12px;
+                  display: flex;
+                  flex-direction: column;
+                  gap: 8px;
+                  box-sizing: border-box;
+                }
+
+                .header {
+                  font-weight: 600;
+                  font-size: 14px;
+                }
+
+                .body {
+                  border: 2px solid #EBEFF4;
+                  border-radius: 12px;
+                  background: #F9FAFB;
+                  padding: 12px;
+                  font-size: 13px;
+                  text-align: justify;
+                }
+              </style>
+
+              <div class="card">
+                <div class="header">Feedback</div>
+                <div class="body"></div>
+              </div>
+            \`;
+
+            // ✅ SAFE insertion of feedback text
+            shadow.querySelector(".body").textContent = f.feedback;
+
+            // 🔹 Hover logic (same behavior as before)
+            pin.addEventListener("mouseenter", () => {
+              host.style.display = "block";
+            });
+
+            pin.addEventListener("mouseleave", () => {
+              setTimeout(() => {
+                if (!host.matches(":hover") && !pin.matches(":hover")) {
+                  host.style.display = "none";
+                }
+              }, 100);
+            });
+
+            host.addEventListener("mouseleave", () => {
+              host.style.display = "none";
+            });
+          });
+        })();
+        `;
+
+      $("body").append(
+        `<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>`
+      );
+      $("body").append(`<script>${commentScript}<\/script>`);
+      $("body").append(`<script>${initialFeedbackLoadingScript}<\/script>`);
+
+      res.send($.html());
+    } else {
+      // Non-HTML (e.g. images, CSS, fonts)
+      res.send(response.data);
+    }
+  } catch (error) {
+    res.status(500).send("Error fetching target URL: " + error.message);
+  }
+});
+
+app.get("/proxy", async (req, res) => {
+  const targetUrl = req.query.url;
+  const portfolioId = req.query.portfolioId || "";
+  const reviewerName = req.query.reviewerName || "";
+  const reviewerEmail = req.query.reviewerEmail || "";
+
+  if (!targetUrl) {
+    return res.status(400).send("Missing ?url parameter");
+  }
+
+  try {
+    const response = await axios.get(targetUrl, {
+      responseType: "text",
+      headers: {
+        "User-Agent": "Mozilla/5.0",
+      },
+    });
+
+    const contentType = response.headers["content-type"] || "text/html";
+    res.setHeader("Content-Type", contentType);
+
+    // 🛑 Remove headers that block iframing
+    res.removeHeader("x-frame-options");
+    res.removeHeader("content-security-policy");
+
+    if (contentType.includes("text/html")) {
+      const $ = cheerio.load(response.data);
+      const baseUrl = new URL(targetUrl);
+      const encodedPortfolioId = encodeURIComponent(portfolioId || "Undefined");
+      const encodedReviewerName = encodeURIComponent(
+        reviewerName || "Anonymous"
+      );
+      const encodedReviewerEmail = encodeURIComponent(
+        reviewerEmail || "Anonymous"
+      );
+
+      // Fetch existing feedbacks
+      let existingFeedbacks = [];
+      try {
+        existingFeedbacks = await getFeedbacks(targetUrl, portfolioId);
+      } catch (err) {
+        console.error("Error fetching feedbacks:", err);
+      }
+
+      // Helper to rewrite URLs
+      const rewriteUrl = (url) => {
+        if (!url) return url;
+        if (url.startsWith("http") || url.startsWith("mailto"))
+          return `/proxy?url=${encodeURIComponent(
+            url
+          )}&portfolioId=${encodedPortfolioId}&reviewerName=${encodedReviewerName}&reviewerEmail=${encodedReviewerEmail}`;
+        return `/proxy?url=${encodeURIComponent(
+          new URL(url, baseUrl).toString()
+        )}&portfolioId=${encodedPortfolioId}&reviewerName=${encodedReviewerName}&reviewerEmail=${encodedReviewerEmail}`;
+      };
+
+      // Fix links
+      $("a").each((_, el) => {
+        $(el).attr("href", rewriteUrl($(el).attr("href")));
+      });
+
+      // Fix scripts, styles, images, iframes
+      $("script").each((_, el) => {
+        $(el).attr("src", rewriteUrl($(el).attr("src")));
+      });
+      $("link").each((_, el) => {
+        $(el).attr("href", rewriteUrl($(el).attr("href")));
+      });
+      $("img").each((_, el) => {
+        $(el).attr("src", rewriteUrl($(el).attr("src")));
+      });
+      $("iframe").each((_, el) => {
+        $(el).attr("src", rewriteUrl($(el).attr("src")));
+      });
+
+      const commentScript = `
         window.commentMode = false;
         window.comments = [];
         window.portfolioId = "${portfolioId || "Undefined"}";
